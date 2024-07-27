@@ -3,8 +3,19 @@ Questions for Lesson 7
 1. What method do you put in the top of a controller so that something happens
 before some or all of the controller actions execute?  Where can you put that
 change so that it affects all controllers?
+Ans.To ensure that a certain method is executed before some or all of the controller actions, you use the before_action callback method in Rails. The before_action method is used to specify a method that should run before any specified controller actions.
+Here's an example of using before_action in a controller:
+class PostsController < ApplicationController
+  before_action :set_post, only: [:show, :edit, :update, :destroy]
 
+  # other actions like index, new, create, etc.
 
+  private
+
+  def set_post
+    @post = Post.find(params[:id])
+  end
+end
 
 2. Consider the following statement:
 
@@ -14,11 +25,48 @@ This creates several files, including two you need to know about.  What are they
 After you do this statement but before starting the rails server, you have to do another
 command.  What is that command?
 
+Ans: Several files are created, but there are two primary files you need to be aware of:
 
+Migration File:
+
+Located in db/migrate/.
+This file contains the instructions for creating the subscriptions table in your database. It will have a filename similar to 20240727024828_create_subscriptions.rb (the exact name will vary based on the timestamp).
+Model File:
+
+Located in app/models/.
+This file defines the Subscription model class and will be named subscription.rb.
+After generating the model, you need to run a command to apply the changes specified in the migration file to your database. This command is:
+bin/rails db:migrate
 
 3. What table is created as a result of the migration described above? What are the column
 names in that table? What is the primary key? What are the foreign keys?  What does a 
 foreign key do?
+Ans:
+The table created in the database is named subscriptions.
+
+Column Names in the subscriptions Table
+The columns in the subscriptions table are as follows:
+
+id: The primary key, automatically added by Rails.
+forum_id: A foreign key reference to the forums table.
+user_id: A foreign key reference to the users table.
+priority: An integer column.
+created_at: Automatically added timestamp for when the record was created.
+updated_at: Automatically added timestamp for when the record was last updated.
+Primary Key
+The primary key for the subscriptions table is the id column. This column uniquely identifies each record in the table.
+
+Foreign Keys
+The foreign keys in the subscriptions table are:
+
+forum_id
+user_id
+Role of Foreign Keys
+Foreign keys are columns that create a link between two tables. In this case:
+
+forum_id links the subscriptions table to the forums table.
+user_id links the subscriptions table to the users table.
+Foreign keys enforce referential integrity between the tables, ensuring that the values in these columns must correspond to actual rows in the referenced tables (forums and users). This helps maintain consistent and valid data across the database.
 
 
 
@@ -32,7 +80,16 @@ that if you have a @subscription (an instance of Subscription), you have a coupl
 used to refer to associated database methods.  What are those methods?  (Actually there are a few,
 but there are two in particular you should know.)
 
+Ans:These associations add several methods to the Subscription class. If you have an instance of Subscription (e.g., @subscription), the two primary methods you should know are:
 
+Accessing the associated user:
+
+@subscription.user
+This method returns the User object associated with the Subscription. It allows you to access the user who created or is associated with the subscription.
+Accessing the associated forum:
+
+@subscription.forum
+This method returns the Forum object associated with the Subscription. It allows you to access the forum that the subscription is related to.
 
 5. You have the following lines in the User model.
 
@@ -42,7 +99,20 @@ has_many :forums, through: :subscriptions
 
 What are threee important methods that are available to instances of the user model because
 of these lines?
+Ans: These associations add several methods to the User class. Three important methods available to instances of the User model because of these lines are:
 
+Accessing Associated Subscriptions:
+
+user.subscriptions
+This method returns a collection (an ActiveRecord::Associations::CollectionProxy) of all Subscription objects associated with the user. It allows you to retrieve all subscriptions for a particular user.
+Accessing Associated Posts:
+
+user.posts
+This method returns a collection of all Post objects associated with the user. It allows you to retrieve all posts created by the user.
+Accessing Associated Forums through Subscriptions:
+
+user.forums
+This method returns a collection of all Forum objects associated with the user through their subscriptions. It allows you to retrieve all forums that the user is subscribed to.
 
 
 6. Suppose that user is an instance of the User class. What kind of object is returned by
@@ -66,7 +136,39 @@ new_subscription = user.subscriptions.new
 Try that last line.  You will see that it creates a subscription object, but that
 object is not entirely empty.  Which attribute is set? Where does it get that
 value?
+Ans: When you call user.subscriptions, it returns an ActiveRecord::Associations::CollectionProxy object, not an Array. This is important because it allows for additional functionality provided by ActiveRecord associations.
+for user=User.first
+subscriptions = user.subscriptions
+subscriptions.class
 
+it will show:
+irb(main):001> user = User.first
+  User Load (0.5ms)  SELECT "users".* FROM "users" ORDER BY "users"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<User:0x000002203af799a8 id: 1, name: "zala", skill_level: "expert", created_at: Mon, 22 Jul 2024 17:30:40.307909000 UTC +00:00, updated_at: Mon, 22 Jul 2024 17:30:47.856711000 UTC +00:00>
+irb(main):002> subscriptions = user.subscriptions
+  Subscription Load (0.3ms)  SELECT "subscriptions".* FROM "subscriptions" WHERE "subscriptions"."user_id" = ?  [["user_id", 1]]
+irb(main):003> subscriptions.class
+=> Subscription::ActiveRecord_Associations_CollectionProxy
+
+For The second call returns what looks like an empty array -- but it isn't
+of the Array class. This is important, because you can do, for 
+example:
+
+new_subscription = subscriptions.new
+
+or
+
+new_subscription = user.subscriptions.new
+It will give output:
+
+{
+  "id" => nil,
+  "forum_id" => nil,
+  "user_id" => 1,     # This is automatically set to the ID of the user
+  "priority" => nil,
+  "created_at" => nil,
+  "updated_at" => nil
+}
 
 
 7. Suppose that user is an instance of User, and forum is an instance of Forum.  What
@@ -74,6 +176,12 @@ Active Record Statement could you use to retrieve all the user's posts for that
 forum?  Hint: You need to have a where in your statement. Try this out in the console.
 You will see the SQL that is executed logged to the screen.  What is that SQL?
 
+Ans: 
+To retrieve all the posts of a user for a specific forum, you can use an Active Record query with a where clause. Here's the statement you would use:
+# Assume user is an instance of User and forum is an instance of Forum
+user_posts_for_forum = Post.where(user_id: user.id, forum_id: forum.id)
+When you execute this query in the Rails console, you will see the SQL that is generated and executed. It will look something like this:
+SELECT "posts".* FROM "posts" WHERE "posts"."user_id" = 1 AND "posts"."forum_id" = 1;
 
 
 8. You have the following method in your posts controller:
@@ -86,6 +194,48 @@ You will see the SQL that is executed logged to the screen.  What is that SQL?
 
 There is a security exposure, a risk that a hacker could do damage.  What is that
 risk? What two things are done in your code to prevent the risk?
+Ans:
+The security risk in the destroy action is that an unauthorized user could potentially delete posts that they do not own. To mitigate this risk, two things need to be implemented in your code:
+
+Authentication: Ensure that only authenticated users can perform actions.
+Authorization: Check that the user attempting to delete the post is the owner of that post.
+Authentication:
+Ensure that only logged-in users can perform actions such as deleting a post. This can be done by using a before_action filter to check if the user is logged in.
+class ApplicationController < ActionController::Base
+  before_action :authenticate_user!
+
+  private
+
+  def authenticate_user!
+    redirect_to login_path, alert: "You must be logged in to perform this action" unless @current_user
+  end
+end
+
+Authorization:
+Check that the user attempting to delete the post is the owner of that post. This can be done by adding an authorization check in the destroy action.
+
+class PostsController < ApplicationController
+  before_action :set_post, only: [:destroy]
+  before_action :authorize_user!, only: [:destroy]
+
+  def destroy
+    @forum = @post.forum
+    @post.destroy
+    redirect_to @forum, notice: "Your post was deleted."
+  end
+
+  private
+
+  def set_post
+    @post = Post.find(params[:id])
+  end
+
+  def authorize_user!
+    unless @post.user_id == @current_user.id
+      redirect_to @forum, alert: "You are not authorized to delete this post."
+    end
+  end
+end
 
 
 
@@ -93,13 +243,40 @@ risk? What two things are done in your code to prevent the risk?
 change the routes?  What is the additional hash key and value that is passed in the
 params hash to the subscriptions controller as a result of this nesting? Which routes
 are unaffected by the nesting?
+Ans:
+When routes for subscriptions are nested under forum routes, it affects the URL structure and the parameters passed to the controller. The nesting implies a hierarchical relationship where subscriptions are considered a resource within forums.
+By nesting subscriptions under forums in the routes.rb file:
+resources :forums do
+  resources :subscriptions
+end
+Additional Hash Key and Value in Params
+As a result of this nesting, an additional key-value pair is passed in the params hash to the subscriptions controller. Specifically, the forum_id is included in the parameters.
 
+For example, when accessing the route GET /forums/1/subscriptions, the params hash will include:
+params = { forum_id: 1 }
+Routes Unaffected by the Nesting
+Routes that are not nested under forums, such as those for other resources or top-level routes, remain unaffected by this nesting. For example, if you have a route for users that is not nested, it will not include the forum_id in its parameters:
 
+ruby
+resources :users
+The generated routes for users would be:
 
+GET /users - index action for listing users
+GET /users/new - new action for creating a new user
+POST /users - create action for creating a user
+GET /users/:id - show action for showing a specific user
+GET /users/:id/edit - edit action for editing a user
+PATCH/PUT /users/:id - update action for updating a user
+DELETE /users/:id - destroy action for deleting a user
 
 10. Every action method must do exactly one of two things -- that is, each
 method may do all sorts of logic, but at the end, it has to do one of two
 things, depending on the outcome of the logic.  What are those two things?
+Ans:
+In a Rails controller action method, at the end of the method, it must either:
 
-
+Render a view or template
+Redirect to another action or URL
+Rendering a View or Template
+Rendering is when the action sends back a view (HTML, JSON, etc.) as the response to the client's request. This can be done explicitly with the render method or implicitly by following Rails conventions. If a render method is not called explicitly, Rails will render the view that corresponds to the action's name in the appropriate view folder.
 
